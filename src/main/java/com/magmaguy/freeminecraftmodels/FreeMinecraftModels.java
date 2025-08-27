@@ -82,7 +82,7 @@ public final class FreeMinecraftModels extends JavaPlugin implements Listener {
         ModeledEntity.shutdown();
         ModeledEntitiesClock.shutdown();
         OBBHitDetection.shutdown();
-        Bukkit.getServer().getScheduler().cancelTasks(MetadataHandler.PLUGIN);
+        // Folia: Individual components handle their own task cancellation
         HandlerList.unregisterAll(MetadataHandler.PLUGIN);
     }
 

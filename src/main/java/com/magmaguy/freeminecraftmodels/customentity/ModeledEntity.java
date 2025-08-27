@@ -190,7 +190,8 @@ public class ModeledEntity {
         if (underlyingEntity != null &&
                 (!(this instanceof PropEntity) ||
                         this instanceof PropEntity propEntity && !propEntity.isPersistent())) {
-            Bukkit.getScheduler().runTask(MetadataHandler.PLUGIN, () -> {
+            // Folia: Use RegionScheduler for entity operations
+            Bukkit.getRegionScheduler().execute(MetadataHandler.PLUGIN, underlyingEntity.getLocation(), (task) -> {
                 underlyingEntity.remove();
             });
         }
