@@ -3,7 +3,7 @@ package com.magmaguy.freeminecraftmodels.customentity.core;
 import com.magmaguy.freeminecraftmodels.MetadataHandler;
 import com.magmaguy.freeminecraftmodels.api.ModeledEntityManager;
 import com.magmaguy.freeminecraftmodels.customentity.ModeledEntity;
-import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
+import com.magmaguy.freeminecraftmodels.utils.SchedulerUtil;
 import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -35,7 +35,7 @@ public class OBBHitDetection implements Listener {
     public static boolean applyDamage = false;
 
     private static HashSet<Projectile> activeProjectiles = new HashSet<>();
-    private static ScheduledTask projectileDetectionTask = null;
+    private static Object projectileDetectionTask = null;
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void EntityDamageByEntityEvent(EntityDamageByEntityEvent event) {
@@ -76,7 +76,7 @@ public class OBBHitDetection implements Listener {
     private static HashMap<Player, Float> attackCooldowns = new HashMap<>();
 
     public static void startProjectileDetection() {
-        projectileDetectionTask = Bukkit.getGlobalRegionScheduler().runAtFixedRate(MetadataHandler.PLUGIN, (task) -> {
+        projectileDetectionTask = SchedulerUtil.runTaskTimer(() -> {
             Iterator<Projectile> iter = activeProjectiles.iterator();
             while (iter.hasNext()) {
                 Projectile proj = iter.next();
@@ -100,9 +100,11 @@ public class OBBHitDetection implements Listener {
 
                         // remove it from our set so we don't double‐hit
                         iter.remove();
-                        // Folia: Use RegionScheduler for entity-specific operations
-                        Bukkit.getRegionScheduler().execute(MetadataHandler.PLUGIN, proj.getLocation(), (regionTask) -> {
-                            proj.remove();
+                        // Use SchedulerUtil for cross-server entity removal
+                        SchedulerUtil.runTask(proj.getLocation(), () -> {
+                            if (proj.isValid()) {
+                                proj.remove();
+                            }
                         });
                         break;
                     }
@@ -115,7 +117,7 @@ public class OBBHitDetection implements Listener {
         activeProjectiles.clear();
         leftClickCooldownPlayers.clear();
         rightClickCooldownPlayers.clear();
-        if (projectileDetectionTask != null) projectileDetectionTask.cancel();
+        SchedulerUtil.cancelTask(projectileDetectionTask);
     }
 
     private static void executeLeftClickAttack(Player player) {
@@ -142,10 +144,16 @@ public class OBBHitDetection implements Listener {
 
         // Add to cooldown
         cooldownSet.add(player);
-        // Folia: Use RegionScheduler for player-specific cooldown removal
-        Bukkit.getRegionScheduler().runDelayed(MetadataHandler.PLUGIN, player.getLocation(), (task) -> {
-            cooldownSet.remove(player);
-        }, 1);
+        // Use SchedulerUtil for cross-server cooldown removal
+        if (SchedulerUtil.isFolia()) {
+            Bukkit.getRegionScheduler().runDelayed(MetadataHandler.PLUGIN, player.getLocation(), (task) -> {
+                cooldownSet.remove(player);
+            }, 1);
+        } else {
+            Bukkit.getScheduler().runTaskLater(MetadataHandler.PLUGIN, () -> {
+                cooldownSet.remove(player);
+            }, 1);
+        }
 
         // Check for hit entity
         Optional<ModeledEntity> hitEntity = OrientedBoundingBox.raytraceFromPlayer(player);

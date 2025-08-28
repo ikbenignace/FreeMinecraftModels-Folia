@@ -9,6 +9,7 @@ import com.magmaguy.freeminecraftmodels.customentity.ModeledEntity;
 import com.magmaguy.freeminecraftmodels.customentity.ModeledEntityHitboxContactCallback;
 import com.magmaguy.freeminecraftmodels.customentity.ModeledEntityLeftClickCallback;
 import com.magmaguy.freeminecraftmodels.customentity.ModeledEntityRightClickCallback;
+import com.magmaguy.freeminecraftmodels.utils.SchedulerUtil;
 import lombok.Getter;
 import lombok.Setter;
 import org.bukkit.Bukkit;
@@ -54,8 +55,8 @@ public class InteractionComponent {
      * This method should be overridden by subclasses to fire their specific event types
      */
     protected void callHitboxContactEvent(Player player) {
-        //Folia: Pass back to synchronous using RegionScheduler for the player's location
-        Bukkit.getRegionScheduler().execute(MetadataHandler.PLUGIN, player.getLocation(), (task) -> {
+        //Use SchedulerUtil for cross-server event handling
+        SchedulerUtil.runTask(player.getLocation(), () -> {
             ModeledEntityHitboxContactEvent event = new ModeledEntityHitboxContactEvent(player, modeledEntity);
             Bukkit.getPluginManager().callEvent(event);
         });
@@ -66,8 +67,8 @@ public class InteractionComponent {
      * This method should be overridden by subclasses to fire their specific event types
      */
     public void callModeledEntityHitByProjectileEvent(Projectile projectile) {
-        //Folia: Pass back to synchronous using RegionScheduler for the projectile's location
-        Bukkit.getRegionScheduler().execute(MetadataHandler.PLUGIN, projectile.getLocation(), (task) -> {
+        //Use SchedulerUtil for cross-server event handling
+        SchedulerUtil.runTask(projectile.getLocation(), () -> {
             ModeledEntityHitByProjectileEvent event = new ModeledEntityHitByProjectileEvent(projectile, modeledEntity);
             Bukkit.getPluginManager().callEvent(event);
         });

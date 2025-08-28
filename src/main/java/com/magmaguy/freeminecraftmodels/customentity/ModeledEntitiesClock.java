@@ -2,26 +2,22 @@ package com.magmaguy.freeminecraftmodels.customentity;
 
 import com.magmaguy.easyminecraftgoals.NMSManager;
 import com.magmaguy.easyminecraftgoals.internal.AbstractPacketBundle;
-import com.magmaguy.freeminecraftmodels.MetadataHandler;
-import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
-import org.bukkit.Bukkit;
+import com.magmaguy.freeminecraftmodels.utils.SchedulerUtil;
 
 import java.util.ArrayList;
 
 public class ModeledEntitiesClock {
-    private static ScheduledTask clockTask = null;
+    private static Object clockTask = null;
 
     private ModeledEntitiesClock() {
     }
 
     public static void start() {
-        clockTask = Bukkit.getGlobalRegionScheduler().runAtFixedRate(MetadataHandler.PLUGIN, (task) -> {
-            tick();
-        }, 1, 1);
+        clockTask = SchedulerUtil.runTaskTimer(() -> tick(), 1, 1);
     }
 
     public static void shutdown() {
-        if (clockTask != null) clockTask.cancel();
+        SchedulerUtil.cancelTask(clockTask);
     }
 
     public static void tick() {

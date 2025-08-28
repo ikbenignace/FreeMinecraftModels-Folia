@@ -9,6 +9,7 @@ import com.magmaguy.freeminecraftmodels.customentity.core.components.*;
 import com.magmaguy.freeminecraftmodels.dataconverter.BoneBlueprint;
 import com.magmaguy.freeminecraftmodels.dataconverter.FileModelConverter;
 import com.magmaguy.freeminecraftmodels.dataconverter.SkeletonBlueprint;
+import com.magmaguy.freeminecraftmodels.utils.SchedulerUtil;
 import com.magmaguy.magmacore.util.Logger;
 import lombok.Getter;
 import lombok.Setter;
@@ -190,10 +191,14 @@ public class ModeledEntity {
         if (underlyingEntity != null &&
                 (!(this instanceof PropEntity) ||
                         this instanceof PropEntity propEntity && !propEntity.isPersistent())) {
-            // Folia: Use RegionScheduler for entity operations
-            Bukkit.getRegionScheduler().execute(MetadataHandler.PLUGIN, underlyingEntity.getLocation(), (task) -> {
-                underlyingEntity.remove();
-            });
+            // Use SchedulerUtil for cross-server compatibility
+            if (underlyingEntity.isValid()) {
+                SchedulerUtil.runTask(underlyingEntity, () -> {
+                    if (underlyingEntity.isValid()) {
+                        underlyingEntity.remove();
+                    }
+                });
+            }
         }
         isRemoved = true;
     }

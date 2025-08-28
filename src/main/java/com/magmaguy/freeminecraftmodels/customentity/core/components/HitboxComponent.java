@@ -4,6 +4,7 @@ import com.magmaguy.easyminecraftgoals.NMSManager;
 import com.magmaguy.freeminecraftmodels.MetadataHandler;
 import com.magmaguy.freeminecraftmodels.customentity.ModeledEntity;
 import com.magmaguy.freeminecraftmodels.customentity.core.OrientedBoundingBox;
+import com.magmaguy.freeminecraftmodels.utils.SchedulerUtil;
 import lombok.Getter;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -47,8 +48,8 @@ public class HitboxComponent {
      */
     public void tick(int tickCounter) {
         if (modeledEntity.getSkeletonBlueprint().getHitbox() == null) return;
-        // Folia: Use AsyncScheduler for async work, then RegionScheduler to sync back
-        Bukkit.getAsyncScheduler().runNow(MetadataHandler.PLUGIN, (task) -> {
+        // Use SchedulerUtil for cross-server async work
+        SchedulerUtil.runTaskAsync(() -> {
             getObbHitbox().update(modeledEntity.getLocation());
             if (modeledEntity.getInteractionComponent().getHitboxContactCallback() == null) return;
             if (tickCounter % 2 == 0) {

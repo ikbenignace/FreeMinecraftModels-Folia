@@ -5,6 +5,7 @@ import com.magmaguy.freeminecraftmodels.api.ModeledEntityManager;
 import com.magmaguy.freeminecraftmodels.config.DefaultConfig;
 import com.magmaguy.freeminecraftmodels.customentity.ModeledEntity;
 import com.magmaguy.freeminecraftmodels.customentity.PropEntity;
+import com.magmaguy.freeminecraftmodels.utils.SchedulerUtil;
 import com.magmaguy.magmacore.util.AttributeManager;
 import lombok.Getter;
 import org.bukkit.Bukkit;
@@ -148,12 +149,14 @@ public class OrientedBoundingBox {
     }
 
     public static void visualizeOBB(ModeledEntity entity, int durationTicks, Player player) {
-        // Folia: Use RegionScheduler for entity-location-based repeating task
-        Bukkit.getRegionScheduler().runAtFixedRate(MetadataHandler.PLUGIN, entity.getLocation(), (task) -> {
-            int ticksRemaining = durationTicks - (int)task.getExecutionCount() + 1;
+        final long[] startTime = {System.currentTimeMillis()};
+        final long tickDuration = durationTicks * 50; // Convert ticks to milliseconds (1 tick = 50ms)
+        
+        // Use SchedulerUtil for cross-server repeating task
+        Object visualizationTask = SchedulerUtil.runTaskTimer(() -> {
+            long elapsed = System.currentTimeMillis() - startTime[0];
             
-            if (ticksRemaining <= 0 || entity.getWorld() == null) {
-                task.cancel();
+            if (elapsed >= tickDuration || entity.getWorld() == null) {
                 entity.hideUnderlyingEntity(player);
                 return;
             }
@@ -190,6 +193,17 @@ public class OrientedBoundingBox {
                 }
             }
         }, 1, 1);
+        
+        // Schedule task cancellation after duration
+        if (SchedulerUtil.isFolia()) {
+            Bukkit.getRegionScheduler().runDelayed(MetadataHandler.PLUGIN, entity.getLocation(), (task) -> {
+                SchedulerUtil.cancelTask(visualizationTask);
+            }, durationTicks);
+        } else {
+            Bukkit.getScheduler().runTaskLater(MetadataHandler.PLUGIN, () -> {
+                SchedulerUtil.cancelTask(visualizationTask);
+            }, durationTicks);
+        }
     }
 
     /**

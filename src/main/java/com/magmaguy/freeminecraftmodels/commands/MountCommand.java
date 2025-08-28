@@ -3,6 +3,7 @@ package com.magmaguy.freeminecraftmodels.commands;
 import com.magmaguy.freeminecraftmodels.MetadataHandler;
 import com.magmaguy.freeminecraftmodels.customentity.DynamicEntity;
 import com.magmaguy.freeminecraftmodels.dataconverter.FileModelConverter;
+import com.magmaguy.freeminecraftmodels.utils.SchedulerUtil;
 import com.magmaguy.magmacore.command.AdvancedCommand;
 import com.magmaguy.magmacore.command.CommandData;
 import com.magmaguy.magmacore.command.SenderType;
@@ -44,12 +45,22 @@ public class MountCommand extends AdvancedCommand {
                 commandData.getStringArgument("models"),
                 (LivingEntity) commandData.getPlayerSender().getWorld().spawnEntity((commandData.getPlayerSender()).getLocation(), EntityType.HORSE));
 
-        // Folia: Use RegionScheduler for entity operations with delay
-        Bukkit.getRegionScheduler().runDelayed(MetadataHandler.PLUGIN, dynamicEntity.getUnderlyingEntity().getLocation(), (task) -> {
-            ((Horse) dynamicEntity.getUnderlyingEntity()).setTamed(true);
-            ((Horse) dynamicEntity.getUnderlyingEntity()).setOwner(commandData.getPlayerSender());
-            ((Horse) dynamicEntity.getUnderlyingEntity()).getInventory().setSaddle(new ItemStack(Material.SADDLE));
-            dynamicEntity.getUnderlyingEntity().addPassenger(commandData.getPlayerSender());
-        }, 5);
+        // Use SchedulerUtil for cross-server compatibility with delay
+        if (SchedulerUtil.isFolia()) {
+            Bukkit.getRegionScheduler().runDelayed(MetadataHandler.PLUGIN, dynamicEntity.getUnderlyingEntity().getLocation(), (task) -> {
+                setupHorse(dynamicEntity, commandData);
+            }, 5);
+        } else {
+            Bukkit.getScheduler().runTaskLater(MetadataHandler.PLUGIN, () -> {
+                setupHorse(dynamicEntity, commandData);
+            }, 5);
+        }
+    }
+    
+    private void setupHorse(DynamicEntity dynamicEntity, CommandData commandData) {
+        ((Horse) dynamicEntity.getUnderlyingEntity()).setTamed(true);
+        ((Horse) dynamicEntity.getUnderlyingEntity()).setOwner(commandData.getPlayerSender());
+        ((Horse) dynamicEntity.getUnderlyingEntity()).getInventory().setSaddle(new ItemStack(Material.SADDLE));
+        dynamicEntity.getUnderlyingEntity().addPassenger(commandData.getPlayerSender());
     }
 }
