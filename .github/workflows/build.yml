@@ -1,0 +1,46 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+        
+    - name: Cache Maven dependencies
+      uses: actions/cache@v4
+      with:
+        path: ~/.m2
+        key: ${{ runner.os }}-m2-${{ hashFiles('**/pom.xml') }}
+        restore-keys: ${{ runner.os }}-m2
+        
+    - name: Compile project
+      run: mvn clean compile
+      
+    - name: Run tests
+      run: mvn test
+      continue-on-error: true
+      
+    - name: Package JAR
+      run: mvn package -DskipTests
+      
+    - name: Upload JAR artifact (main branch only)
+      if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      uses: actions/upload-artifact@v4
+      with:
+        name: FreeMinecraftModels-${{ github.sha }}
+        path: target/FreeMinecraftModels.jar
+        retention-days: 30
