@@ -31,3 +31,4 @@ This repository now includes a GitHub Actions workflow for automated building an
 - Consistent build environment
 - Easy access to compiled JAR files for main branch builds
 - Cached dependencies for faster subsequent builds
+
