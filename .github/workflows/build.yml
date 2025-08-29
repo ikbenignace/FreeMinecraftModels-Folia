@@ -37,11 +37,18 @@ jobs:
     - name: Package JAR
       run: mvn package -DskipTests
       
-    - name: Upload JAR artifact (master branch only)
+    - name: Upload JAR artifact (master branch)
       if: github.ref == 'refs/heads/master' && github.event_name == 'push'
+      uses: actions/upload-artifact@v4
+      with:
+        name: FreeMinecraftModels
+        path: target/FreeMinecraftModels.jar
+        retention-days: 30
+
+    - name: Upload JAR artifact (pull request)
+      if: github.event_name == 'pull_request'
       uses: actions/upload-artifact@v4
       with:
         name: FreeMinecraftModels-${{ github.sha }}
         path: target/FreeMinecraftModels.jar
         retention-days: 30
-
