@@ -3,7 +3,9 @@ package com.magmaguy.freeminecraftmodels.customentity.core;
 import com.magmaguy.freeminecraftmodels.MetadataHandler;
 import com.magmaguy.freeminecraftmodels.api.ModeledEntityManager;
 import com.magmaguy.freeminecraftmodels.customentity.ModeledEntity;
+import com.magmaguy.freeminecraftmodels.utils.SchedulerUtil;
 import lombok.Getter;
+import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Projectile;
 import org.bukkit.event.EventHandler;
@@ -17,8 +19,6 @@ import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.event.player.PlayerAnimationType;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.scheduler.BukkitRunnable;
-import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,7 +35,7 @@ public class OBBHitDetection implements Listener {
     public static boolean applyDamage = false;
 
     private static HashSet<Projectile> activeProjectiles = new HashSet<>();
-    private static BukkitTask projectileDetectionTask = null;
+    private static Object projectileDetectionTask = null;
 
     @EventHandler(priority = EventPriority.LOWEST)
     public void EntityDamageByEntityEvent(EntityDamageByEntityEvent event) {
@@ -76,51 +76,48 @@ public class OBBHitDetection implements Listener {
     private static HashMap<Player, Float> attackCooldowns = new HashMap<>();
 
     public static void startProjectileDetection() {
-        projectileDetectionTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                Iterator<Projectile> iter = activeProjectiles.iterator();
-                while (iter.hasNext()) {
-                    Projectile proj = iter.next();
+        projectileDetectionTask = SchedulerUtil.runTaskTimer(() -> {
+            Iterator<Projectile> iter = activeProjectiles.iterator();
+            while (iter.hasNext()) {
+                Projectile proj = iter.next();
 
-                    // 1) drop invalid projectiles
-                    if (!proj.isValid()) {
-                        iter.remove();
+                // 1) drop invalid projectiles
+                if (!proj.isValid()) {
+                    iter.remove();
+                    continue;
+                }
+
+                // 2) scan against every modeled entity in the same world
+                for (ModeledEntity entity : ModeledEntityManager.getAllEntities()) {
+                    if (entity.getWorld() == null ||
+                            !entity.getWorld().equals(proj.getWorld())) {
                         continue;
                     }
 
-                    // 2) scan against every modeled entity in the same world
-                    for (ModeledEntity entity : ModeledEntityManager.getAllEntities()) {
-                        if (entity.getWorld() == null ||
-                                !entity.getWorld().equals(proj.getWorld())) {
-                            continue;
-                        }
+                    // update the OBB to the entity's current position/orientation
+                    if (entity.getHitboxComponent().getObbHitbox().isAABBCollidingWithOBB(proj.getBoundingBox())) {
+                        entity.getInteractionComponent().callModeledEntityHitByProjectileEvent(proj);
 
-                        // update the OBB to the entity's current position/orientation
-                        if (entity.getHitboxComponent().getObbHitbox().isAABBCollidingWithOBB(proj.getBoundingBox())) {
-                            entity.getInteractionComponent().callModeledEntityHitByProjectileEvent(proj);
-
-                            // remove it from our set so we don't double‐hit
-                            iter.remove();
-                            new BukkitRunnable() {
-                                @Override
-                                public void run() {
-                                    proj.remove();
-                                }
-                            }.runTask(MetadataHandler.PLUGIN);
-                            break;
-                        }
+                        // remove it from our set so we don't double‐hit
+                        iter.remove();
+                        // Use SchedulerUtil for cross-server entity removal
+                        SchedulerUtil.runTask(proj.getLocation(), () -> {
+                            if (proj.isValid()) {
+                                proj.remove();
+                            }
+                        });
+                        break;
                     }
                 }
             }
-        }.runTaskTimerAsynchronously(MetadataHandler.PLUGIN, 0L, 1L);
+        }, 1L, 1L);
     }
 
     public static void shutdown() {
         activeProjectiles.clear();
         leftClickCooldownPlayers.clear();
         rightClickCooldownPlayers.clear();
-        if (projectileDetectionTask != null) projectileDetectionTask.cancel();
+        SchedulerUtil.cancelTask(projectileDetectionTask);
     }
 
     private static void executeLeftClickAttack(Player player) {
@@ -147,12 +144,16 @@ public class OBBHitDetection implements Listener {
 
         // Add to cooldown
         cooldownSet.add(player);
-        new BukkitRunnable() {
-            @Override
-            public void run() {
+        // Use SchedulerUtil for cross-server cooldown removal
+        if (SchedulerUtil.isFolia()) {
+            Bukkit.getRegionScheduler().runDelayed(MetadataHandler.PLUGIN, player.getLocation(), (task) -> {
                 cooldownSet.remove(player);
-            }
-        }.runTaskLater(MetadataHandler.PLUGIN, 1);
+            }, 1);
+        } else {
+            Bukkit.getScheduler().runTaskLater(MetadataHandler.PLUGIN, () -> {
+                cooldownSet.remove(player);
+            }, 1);
+        }
 
         // Check for hit entity
         Optional<ModeledEntity> hitEntity = OrientedBoundingBox.raytraceFromPlayer(player);

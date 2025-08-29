@@ -5,14 +5,15 @@ import com.magmaguy.freeminecraftmodels.api.ModeledEntityManager;
 import com.magmaguy.freeminecraftmodels.config.DefaultConfig;
 import com.magmaguy.freeminecraftmodels.customentity.ModeledEntity;
 import com.magmaguy.freeminecraftmodels.customentity.PropEntity;
+import com.magmaguy.freeminecraftmodels.utils.SchedulerUtil;
 import com.magmaguy.magmacore.util.AttributeManager;
 import lombok.Getter;
+import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.attribute.Attribute;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.BoundingBox;
 import org.bukkit.util.Vector;
 import org.joml.Matrix3d;
@@ -148,52 +149,61 @@ public class OrientedBoundingBox {
     }
 
     public static void visualizeOBB(ModeledEntity entity, int durationTicks, Player player) {
-        new BukkitRunnable() {
-            private int ticksRemaining = durationTicks;
-
-            @Override
-            public void run() {
-                if (ticksRemaining <= 0 || entity.getWorld() == null) {
-                    this.cancel();
-                    entity.hideUnderlyingEntity(player);
-                    return;
-                }
-
-                // Get a fresh OBB every time
-                OrientedBoundingBox obb = entity.getHitboxComponent().getObbHitbox();
-
-                // Get the corners of the OBB
-                Vector3d[] corners = obb.getCorners();
-
-                // Define the edges of the cube (pairs of corner indices)
-                int[][] edges = {
-                        {0, 1}, {1, 3}, {3, 2}, {2, 0},  // Top face
-                        {4, 5}, {5, 7}, {7, 6}, {6, 4},  // Bottom face
-                        {0, 4}, {1, 5}, {2, 6}, {3, 7}   // Connecting edges
-                };
-
-                // Draw particles along each edge
-                for (int[] edge : edges) {
-                    Vector3d start = corners[edge[0]];
-                    Vector3d end = corners[edge[1]];
-
-                    // Number of particles to place along the edge
-                    int particleCount = 10;
-
-                    for (int i = 0; i <= particleCount; i++) {
-                        float t = i / (float) particleCount;
-                        double x = start.x + t * (end.x - start.x);
-                        double y = start.y + t * (end.y - start.y);
-                        double z = start.z + t * (end.z - start.z);
-
-                        Location particleLoc = new Location(entity.getWorld(), x, y, z);
-                        entity.getWorld().spawnParticle(Particle.ELECTRIC_SPARK, particleLoc, 1, 0, 0, 0, 0);
-                    }
-                }
-
-                ticksRemaining--;
+        final long[] startTime = {System.currentTimeMillis()};
+        final long tickDuration = durationTicks * 50; // Convert ticks to milliseconds (1 tick = 50ms)
+        
+        // Use SchedulerUtil for cross-server repeating task
+        Object visualizationTask = SchedulerUtil.runTaskTimer(() -> {
+            long elapsed = System.currentTimeMillis() - startTime[0];
+            
+            if (elapsed >= tickDuration || entity.getWorld() == null) {
+                entity.hideUnderlyingEntity(player);
+                return;
             }
-        }.runTaskTimer(MetadataHandler.PLUGIN, 0, 1);
+
+            // Get a fresh OBB every time
+            OrientedBoundingBox obb = entity.getHitboxComponent().getObbHitbox();
+
+            // Get the corners of the OBB
+            Vector3d[] corners = obb.getCorners();
+
+            // Define the edges of the cube (pairs of corner indices)
+            int[][] edges = {
+                    {0, 1}, {1, 3}, {3, 2}, {2, 0},  // Top face
+                    {4, 5}, {5, 7}, {7, 6}, {6, 4},  // Bottom face
+                    {0, 4}, {1, 5}, {2, 6}, {3, 7}   // Connecting edges
+            };
+
+            // Draw particles along each edge
+            for (int[] edge : edges) {
+                Vector3d start = corners[edge[0]];
+                Vector3d end = corners[edge[1]];
+
+                // Number of particles to place along the edge
+                int particleCount = 10;
+
+                for (int i = 0; i <= particleCount; i++) {
+                    float t = i / (float) particleCount;
+                    double x = start.x + t * (end.x - start.x);
+                    double y = start.y + t * (end.y - start.y);
+                    double z = start.z + t * (end.z - start.z);
+
+                    Location particleLoc = new Location(entity.getWorld(), x, y, z);
+                    entity.getWorld().spawnParticle(Particle.ELECTRIC_SPARK, particleLoc, 1, 0, 0, 0, 0);
+                }
+            }
+        }, 1, 1);
+        
+        // Schedule task cancellation after duration
+        if (SchedulerUtil.isFolia()) {
+            Bukkit.getRegionScheduler().runDelayed(MetadataHandler.PLUGIN, entity.getLocation(), (task) -> {
+                SchedulerUtil.cancelTask(visualizationTask);
+            }, durationTicks);
+        } else {
+            Bukkit.getScheduler().runTaskLater(MetadataHandler.PLUGIN, () -> {
+                SchedulerUtil.cancelTask(visualizationTask);
+            }, durationTicks);
+        }
     }
 
     /**
