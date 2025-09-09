@@ -44,7 +44,7 @@ public class MountCommand extends AdvancedCommand {
                 commandData.getStringArgument("models"),
                 (LivingEntity) commandData.getPlayerSender().getWorld().spawnEntity((commandData.getPlayerSender()).getLocation(), EntityType.HORSE));
 
-        Bukkit.getScheduler().scheduleSyncDelayedTask(MetadataHandler.PLUGIN, () -> {
+        Bukkit.getServer().getGlobalRegionScheduler().runDelayed(MetadataHandler.PLUGIN, (task) -> {
             ((Horse) dynamicEntity.getUnderlyingEntity()).setTamed(true);
             ((Horse) dynamicEntity.getUnderlyingEntity()).setOwner(commandData.getPlayerSender());
             ((Horse) dynamicEntity.getUnderlyingEntity()).getInventory().setSaddle(new ItemStack(Material.SADDLE));

@@ -3,7 +3,7 @@ package com.magmaguy.freeminecraftmodels.customentity;
 import com.magmaguy.easyminecraftgoals.NMSManager;
 import com.magmaguy.easyminecraftgoals.internal.AbstractPacketBundle;
 import com.magmaguy.freeminecraftmodels.MetadataHandler;
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.ArrayList;
@@ -15,12 +15,8 @@ public class ModeledEntitiesClock {
     }
 
     public static void start() {
-        clock = new BukkitRunnable() {
-            @Override
-            public void run() {
-                tick();
-            }
-        }.runTaskTimerAsynchronously(MetadataHandler.PLUGIN, 0, 1);
+        // Folia-compatible async scheduling for entity ticking
+        clock = Bukkit.getServer().getAsyncScheduler().runAtFixedRate(MetadataHandler.PLUGIN, (task) -> tick(), 0, 50, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 
     public static void shutdown() {

@@ -20,7 +20,6 @@ import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.world.ChunkLoadEvent;
 import org.bukkit.event.world.ChunkUnloadEvent;
 import org.bukkit.persistence.PersistentDataType;
-import org.bukkit.scheduler.BukkitRunnable;
 
 import java.util.*;
 
@@ -143,24 +142,19 @@ public class PropEntity extends StaticEntity {
         propEntities.remove(underlyingEntity.getUniqueId());
         if (!persistent) underlyingEntity.remove();
         if (isDying() && underlyingEntity != null) {
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    underlyingEntity.remove();
-                }
-            }.runTask(MetadataHandler.PLUGIN);
+            // Folia-compatible entity scheduling
+            Entity entity = underlyingEntity;
+            entity.getScheduler().run(MetadataHandler.PLUGIN, (task) -> entity.remove(), null);
         }
     }
 
     public void permanentlyRemove() {
         remove();
-        if (underlyingEntity != null)
-            new BukkitRunnable() {
-                @Override
-                public void run() {
-                    underlyingEntity.remove();
-                }
-            }.runTask(MetadataHandler.PLUGIN);
+        if (underlyingEntity != null) {
+            // Folia-compatible entity scheduling
+            Entity entity = underlyingEntity;
+            entity.getScheduler().run(MetadataHandler.PLUGIN, (task) -> entity.remove(), null);
+        }
     }
 
     //PropBlockComponent

@@ -17,7 +17,7 @@ import org.bukkit.event.player.PlayerAnimationEvent;
 import org.bukkit.event.player.PlayerAnimationType;
 import org.bukkit.event.player.PlayerInteractEntityEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
-import org.bukkit.scheduler.BukkitRunnable;
+import org.bukkit.Bukkit;
 import org.bukkit.scheduler.BukkitTask;
 
 import java.util.HashMap;
@@ -76,44 +76,38 @@ public class OBBHitDetection implements Listener {
     private static HashMap<Player, Float> attackCooldowns = new HashMap<>();
 
     public static void startProjectileDetection() {
-        projectileDetectionTask = new BukkitRunnable() {
-            @Override
-            public void run() {
-                Iterator<Projectile> iter = activeProjectiles.iterator();
-                while (iter.hasNext()) {
-                    Projectile proj = iter.next();
+        // Folia-compatible async scheduling for projectile detection
+        projectileDetectionTask = Bukkit.getServer().getAsyncScheduler().runAtFixedRate(MetadataHandler.PLUGIN, (task) -> {
+            Iterator<Projectile> iter = activeProjectiles.iterator();
+            while (iter.hasNext()) {
+                Projectile proj = iter.next();
 
-                    // 1) drop invalid projectiles
-                    if (!proj.isValid()) {
-                        iter.remove();
+                // 1) drop invalid projectiles
+                if (!proj.isValid()) {
+                    iter.remove();
+                    continue;
+                }
+
+                // 2) scan against every modeled entity in the same world
+                for (ModeledEntity entity : ModeledEntityManager.getAllEntities()) {
+                    if (entity.getWorld() == null ||
+                            !entity.getWorld().equals(proj.getWorld())) {
                         continue;
                     }
 
-                    // 2) scan against every modeled entity in the same world
-                    for (ModeledEntity entity : ModeledEntityManager.getAllEntities()) {
-                        if (entity.getWorld() == null ||
-                                !entity.getWorld().equals(proj.getWorld())) {
-                            continue;
-                        }
+                    // update the OBB to the entity's current position/orientation
+                    if (entity.getHitboxComponent().getObbHitbox().isAABBCollidingWithOBB(proj.getBoundingBox())) {
+                        entity.getInteractionComponent().callModeledEntityHitByProjectileEvent(proj);
 
-                        // update the OBB to the entity's current position/orientation
-                        if (entity.getHitboxComponent().getObbHitbox().isAABBCollidingWithOBB(proj.getBoundingBox())) {
-                            entity.getInteractionComponent().callModeledEntityHitByProjectileEvent(proj);
-
-                            // remove it from our set so we don't double‐hit
-                            iter.remove();
-                            new BukkitRunnable() {
-                                @Override
-                                public void run() {
-                                    proj.remove();
-                                }
-                            }.runTask(MetadataHandler.PLUGIN);
-                            break;
-                        }
+                        // remove it from our set so we don't double‐hit
+                        iter.remove();
+                        // Folia-compatible entity scheduling for removal
+                        proj.getScheduler().run(MetadataHandler.PLUGIN, (removalTask) -> proj.remove(), null);
+                        break;
                     }
                 }
             }
-        }.runTaskTimerAsynchronously(MetadataHandler.PLUGIN, 0L, 1L);
+        }, 0, 50, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 
     public static void shutdown() {
@@ -147,12 +141,8 @@ public class OBBHitDetection implements Listener {
 
         // Add to cooldown
         cooldownSet.add(player);
-        new BukkitRunnable() {
-            @Override
-            public void run() {
-                cooldownSet.remove(player);
-            }
-        }.runTaskLater(MetadataHandler.PLUGIN, 1);
+        // Folia-compatible player scheduling for cooldown removal
+        player.getScheduler().runDelayed(MetadataHandler.PLUGIN, (task) -> cooldownSet.remove(player), null, 1);
 
         // Check for hit entity
         Optional<ModeledEntity> hitEntity = OrientedBoundingBox.raytraceFromPlayer(player);
