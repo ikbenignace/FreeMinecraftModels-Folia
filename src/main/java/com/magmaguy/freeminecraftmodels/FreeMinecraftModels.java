@@ -61,7 +61,6 @@ public final class FreeMinecraftModels extends JavaPlugin implements Listener {
         manager.registerCommand(new FreeMinecraftModelsCommand());
         manager.registerCommand(new DisguiseCommand());
         manager.registerCommand(new UndisguiseCommand());
-        manager.registerCommand(new ItemifyCommand());
         new PropsConfig();
         Bukkit.getPluginManager().registerEvents(this, this);
         OutputFolder.zipResourcePack();
