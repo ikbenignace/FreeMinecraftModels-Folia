@@ -11,6 +11,7 @@ import com.magmaguy.freeminecraftmodels.customentity.core.OBBHitDetection;
 import com.magmaguy.freeminecraftmodels.customentity.core.components.InteractionComponent;
 import com.magmaguy.freeminecraftmodels.dataconverter.FileModelConverter;
 import com.magmaguy.freeminecraftmodels.listeners.EntityTeleportEvent;
+import com.magmaguy.freeminecraftmodels.listeners.ModelItemListener;
 import com.magmaguy.magmacore.MagmaCore;
 import com.magmaguy.magmacore.command.CommandManager;
 import org.bstats.bukkit.Metrics;
@@ -34,7 +35,7 @@ public final class FreeMinecraftModels extends JavaPlugin implements Listener {
         Bukkit.getLogger().info("Version " + this.getDescription().getVersion());
         MetadataHandler.PLUGIN = this;
         MagmaCore.onEnable();
-        MagmaCore.checkVersionUpdate("111660", "https://www.spigotmc.org/resources/free-minecraft-models.111660/");
+        MagmaCore.checkVersionUpdate("111660", "https://nightbreak.io/plugin/freeminecraftmodels/");
         //Initialize plugin configuration files
         new DefaultConfig();
         MagmaCore.initializeImporter();
@@ -47,6 +48,7 @@ public final class FreeMinecraftModels extends JavaPlugin implements Listener {
         Bukkit.getPluginManager().registerEvents(new EntityTeleportEvent(), this);
         Bukkit.getPluginManager().registerEvents(new DynamicEntity.ModeledEntityEvents(), this);
         Bukkit.getPluginManager().registerEvents(new InteractionComponent.InteractionComponentEvents(), this);
+        Bukkit.getPluginManager().registerEvents(new ModelItemListener(), this);
         NMSManager.initializeAdapter(this);
         CommandManager manager = new CommandManager(this, "freeminecraftmodels");
         manager.registerCommand(new MountCommand());
@@ -59,6 +61,7 @@ public final class FreeMinecraftModels extends JavaPlugin implements Listener {
         manager.registerCommand(new FreeMinecraftModelsCommand());
         manager.registerCommand(new DisguiseCommand());
         manager.registerCommand(new UndisguiseCommand());
+        manager.registerCommand(new ItemifyCommand());
         new PropsConfig();
         Bukkit.getPluginManager().registerEvents(this, this);
         OutputFolder.zipResourcePack();
